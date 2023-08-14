@@ -525,6 +525,81 @@ mod test {
         })
     }
 
+    #[tokio::test]
+    async fn test_simulate_fb_bundle_goerli() -> anyhow::Result<()> {
+        std::env::set_var("RUST_LOG", "info");
+        tracing_subscriber::fmt::init();
+
+        dotenv::dotenv().ok();
+        let eth_client_address = env::var("HTTP_RPC").expect("HTTP_RPC env var not set");
+        let ep_address = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789".parse::<Address>()?;
+        let dir = format!("{}/.silius/0x03b758624016FE79Aa871e172aF027f46d1Ec1D3", env::var("HOME").unwrap());
+        let wallet = Wallet::from_file(dir.into(), &U256::from(5), true)?;
+
+        let bundler = Bundler::new(
+            wallet.clone(),
+            eth_client_address.to_string(),
+            wallet.signer.address(),
+            ep_address,
+            Chain::from(5),
+            SendBundleMode::Flashbots,
+            Some(vec![flashbots_relay_endpoints::FLASHBOTS_GOERLI.to_string()]),
+        )
+        .expect("Failed to create bundler");
+
+        let fb_client = generate_fb_middleware(
+            eth_client_address.clone().to_string(),
+            Some(vec![flashbots_relay_endpoints::FLASHBOTS_GOERLI.to_string()]),
+            bundler.wallet.clone(),
+        )?;
+
+        let approve = approveCall {
+            // UniswapV2Router address
+            guy: alloy_Address::parse_checksummed(
+                "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+                None,
+            )
+            .unwrap(),
+            wad: alloy_U256::MAX,
+        };
+        let approve_call_data = approve.encode();
+
+        let address = bundler.wallet.signer.address();
+        let nonce = fb_client.get_transaction_count(address.clone(), None).await?;
+
+        let approve_tx_req = TypedTransaction::Eip1559(Eip1559TransactionRequest {
+            to: Some(NameOrAddress::Address(
+                "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse::<H160>()?,
+            )),
+            from: Some(address),
+            data: Some(approve_call_data.into()),
+            chain_id: Some(U64::from(5)),
+            max_fee_per_gas: Some(U256::from(1000000000000u64)),
+            max_priority_fee_per_gas: Some(U256::from(1000000000000u64)),
+            gas: Some(U256::from(1000000u64)),
+            nonce: Some(nonce.clone()),
+            value: None,
+            access_list: Default::default(),
+        });
+
+        let sim_bundle_req = generate_bundle_req(
+            fb_client.clone(),
+            vec![approve_tx_req.clone()],
+            true,
+        )
+        .await?;
+        let pre_simultation_block = sim_bundle_req.block().unwrap();
+
+        let simultation_res = simulate_fb_bundle(fb_client.clone(), &sim_bundle_req).await?;
+        let post_simulation_block = simultation_res.simulation_block;
+        let coinbase_diff = simultation_res.coinbase_diff;
+        assert_eq!(pre_simultation_block, post_simulation_block);
+        assert_ne!(coinbase_diff, U256::zero());
+
+        Ok(())
+
+    }
+
     async fn start_mock_server() -> anyhow::Result<(ServerHandle, MockFlashbotsBlockBuilderRelay)> {
         // Start a mock server connecting to the Anvil, exposing the port at 3001
         let mock_relay = MockFlashbotsBlockBuilderRelay::new(8545u64).await.unwrap();

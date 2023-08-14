@@ -53,6 +53,12 @@ pub struct RpcServiceOpts {
 
     #[clap(long, value_delimiter = ',', default_value = "*")]
     pub cors_domain: Vec<String>,
+
+    #[clap(long)]
+    pub build_fb_signer: Option<bool>,
+
+    #[clap(long, default_value = "eth-client")]
+    pub send_bundle_mode: Option<String>,
 }
 
 #[cfg(test)]

@@ -60,11 +60,6 @@ pub struct Opt {
     #[clap(flatten)]
     pub bundler_opts: BundlerServiceOpts,
 
-    #[clap(long)]
-    pub build_fb_signer: Option<bool>,
-
-    #[clap(long, default_value = "eth-client")]
-    pub send_bundle_mode: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -106,7 +101,7 @@ fn main() -> Result<()> {
                 }
 
                 let wallet: Wallet;
-                if opt.build_fb_signer == Some(true) {
+                if opt.rpc_opts.build_fb_signer == Some(true) {
                     wallet = Wallet::from_file(
                         opt.mnemonic_file.clone(),
                         &chain_id,
@@ -163,7 +158,7 @@ fn main() -> Result<()> {
                     opt.bundler_opts.min_balance,
                     opt.bundler_opts.bundle_interval,
                     uopool_grpc_client.clone(),
-                    match opt.send_bundle_mode.as_deref() {
+                    match opt.rpc_opts.send_bundle_mode.as_deref() {
                         Some(mode) => match mode {
                             "eth-client" => SendBundleMode::EthClient,
                             "flashbots" => SendBundleMode::Flashbots,
@@ -171,7 +166,7 @@ fn main() -> Result<()> {
                         },
                         None => SendBundleMode::EthClient,
                     },
-                    match opt.send_bundle_mode {
+                    match opt.rpc_opts.send_bundle_mode {
                         Some(mode) => match mode.as_str() {
                             "eth-client" => None,
                             "flashbots" => Some(vec![
