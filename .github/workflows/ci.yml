@@ -82,6 +82,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           repository: eth-infinitism/bundler-spec-tests
+<<<<<<< HEAD
+=======
+          ref: '478ee23631a7d7fee48df930df222da07d6837fd'
+>>>>>>> 25d9793 (chore: update tests in ci)
           submodules: true
       - uses: actions/checkout@v3
         with:
