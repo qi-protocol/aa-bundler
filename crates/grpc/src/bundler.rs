@@ -197,8 +197,7 @@ pub fn bundler_service_run(
     eth_client_address: String,
     chain: Chain,
     beneficiary: Address,
-    _gas_factor: U256,
-    _min_balance: U256,
+    min_balance: U256,
     bundle_interval: u64,
     uopool_grpc_client: UoPoolClient<tonic::transport::Channel>,
     send_bundle_mode: SendBundleMode,
@@ -215,6 +214,7 @@ pub fn bundler_service_run(
                 chain,
                 send_bundle_mode.clone(),
                 relay_endpoints.clone(),
+                min_balance,
             )
             .expect("Failed to create bundler")
         })

@@ -151,7 +151,6 @@ fn main() -> Result<()> {
                     opt.eth_client_address.clone(),
                     chain,
                     opt.bundler_opts.beneficiary,
-                    opt.bundler_opts.gas_factor,
                     opt.bundler_opts.min_balance,
                     opt.bundler_opts.bundle_interval,
                     uopool_grpc_client.clone(),
@@ -163,8 +162,8 @@ fn main() -> Result<()> {
                         },
                         None => SendBundleMode::EthClient,
                     },
-                    match opt.rpc_opts.send_bundle_mode {
-                        Some(mode) => match mode.as_str() {
+                    match opt.rpc_opts.clone().send_bundle_mode {
+                        Some(mode) => match mode.clone().as_str() {
                             "eth-client" => None,
                             "flashbots" => Some(vec![
                                 flashbots_relay_endpoints::FLASHBOTS.to_string(),

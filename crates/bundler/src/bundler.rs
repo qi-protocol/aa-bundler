@@ -3,7 +3,7 @@ use ethers::{
     providers::{Http, Middleware, Provider},
     signers::Signer,
     types::{
-        transaction::eip2718::TypedTransaction, Address, Eip1559TransactionRequest, H256, U64,
+        transaction::eip2718::TypedTransaction, Address, Eip1559TransactionRequest, H256, U64, U256
     },
 };
 use ethers_flashbots::{
@@ -52,6 +52,7 @@ pub struct Bundler {
     pub eth_client: Option<EthClientType<Provider<Http>>>,
     /// Flashbots signer middleware
     pub fb_client: Option<FlashbotsClientType<Provider<Http>>>,
+    pub min_balance: U256,
 }
 
 impl Bundler {
@@ -68,6 +69,7 @@ impl Bundler {
         chain: Chain,
         send_bundle_mode: SendBundleMode,
         relay_endpoints: Option<Vec<String>>,
+        min_balance: U256,
     ) -> anyhow::Result<Self> {
         if !(chain.id() == 1 || chain.id() == 5 || chain.id() == 11155111)
             && send_bundle_mode == SendBundleMode::Flashbots
@@ -93,6 +95,7 @@ impl Bundler {
                     relay_endpoints: None,
                     eth_client: Some(client),
                     fb_client: None,
+                    min_balance: min_balance,
                 })
             }
             SendBundleMode::Flashbots => match relay_endpoints {
@@ -114,6 +117,7 @@ impl Bundler {
                         relay_endpoints: Some(relay_endpoints),
                         eth_client: None,
                         fb_client: Some(fb_client),
+                        min_balance: min_balance,
                     })
                 }
                 Some(relay_endpoints) => {
@@ -133,6 +137,7 @@ impl Bundler {
                         relay_endpoints: Some(relay_endpoints),
                         eth_client: None,
                         fb_client: Some(fb_client),
+                        min_balance: min_balance,
                     })
                 }
             },
@@ -183,10 +188,20 @@ impl Bundler {
             .clone()
             .get_transaction_count(self.wallet.signer.address(), None)
             .await?;
+        let balance = client
+            .clone()
+            .get_balance(self.wallet.signer.address(), None)
+            .await?;
+        let beneficiary = if balance < self.min_balance {
+            self.wallet.signer.address()
+        } else {
+            self.beneficiary
+        };
+
         let mut tx: TypedTransaction = ep
             .handle_ops(
                 uos.clone().into_iter().map(Into::into).collect(),
-                self.beneficiary,
+                beneficiary,
             )
             .tx;
 
@@ -251,6 +266,13 @@ impl Bundler {
 
         let tx_receipt = tx.await?;
 
+        info!(
+            "Bundle successfully sent, tx hash: {:?}, account: {:?}, entry point: {:?}, beneficiary: {:?}",
+            tx_hash,
+            self.wallet.signer.address(),
+            self.entry_point,
+            self.beneficiary
+        );
         trace!("Transaction receipt: {tx_receipt:?}");
 
         Ok(tx_hash)
