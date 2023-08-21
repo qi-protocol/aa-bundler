@@ -52,3 +52,12 @@ pub mod flashbots_relay_endpoints {
     pub const RELAYOOR_WTF: &str = "https://relayooor.wtf/";
     pub const RSYNC_BUILDER: &str = "https://rsync-builder.xyz/";
 }
+
+/// Supported networks' IDs
+pub mod supported_networks {
+    pub const MAINNET: u64 = 1;
+    pub const GOERLI: u64 = 5;
+    pub const SEPOLIA: u64 = 5;
+    pub const DEV: u64 = 1337;
+    pub const MUMBAI: u64 = 80001;
+}

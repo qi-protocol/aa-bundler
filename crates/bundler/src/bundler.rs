@@ -3,14 +3,17 @@ use ethers::{
     providers::{Http, Middleware, Provider},
     signers::Signer,
     types::{
-        transaction::eip2718::TypedTransaction, Address, Eip1559TransactionRequest, H256, U64, U256
+        transaction::eip2718::TypedTransaction, Address, Eip1559TransactionRequest, H256, U256, U64,
     },
 };
 use ethers_flashbots::{
     BundleRequest, FlashbotsMiddleware, PendingBundleError::BundleNotIncluded, SimulatedBundle,
 };
 use silius_contracts::entry_point::EntryPointAPI;
-use silius_primitives::{consts::flashbots_relay_endpoints, Chain, UserOperation, Wallet};
+use silius_primitives::{
+    consts::{flashbots_relay_endpoints, supported_networks},
+    Chain, UserOperation, Wallet,
+};
 use std::{sync::Arc, time::Duration};
 use tracing::{info, trace};
 use url::Url;
@@ -61,6 +64,7 @@ impl Bundler {
     ///
     /// # Returns
     /// * `Self` - A new `Bundler` instance
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         wallet: Wallet,
         eth_client_address: String,
@@ -71,7 +75,9 @@ impl Bundler {
         relay_endpoints: Option<Vec<String>>,
         min_balance: U256,
     ) -> anyhow::Result<Self> {
-        if !(chain.id() == 1 || chain.id() == 5 || chain.id() == 11155111)
+        if !(chain.id() == supported_networks::MAINNET
+            || chain.id() == supported_networks::GOERLI
+            || chain.id() == supported_networks::SEPOLIA)
             && send_bundle_mode == SendBundleMode::Flashbots
         {
             panic!("Flashbots is only supported on Mainnet, Goerli and Sepolia");
@@ -95,7 +101,7 @@ impl Bundler {
                     relay_endpoints: None,
                     eth_client: Some(client),
                     fb_client: None,
-                    min_balance: min_balance,
+                    min_balance,
                 })
             }
             SendBundleMode::Flashbots => match relay_endpoints {
@@ -117,7 +123,7 @@ impl Bundler {
                         relay_endpoints: Some(relay_endpoints),
                         eth_client: None,
                         fb_client: Some(fb_client),
-                        min_balance: min_balance,
+                        min_balance,
                     })
                 }
                 Some(relay_endpoints) => {
@@ -137,7 +143,7 @@ impl Bundler {
                         relay_endpoints: Some(relay_endpoints),
                         eth_client: None,
                         fb_client: Some(fb_client),
-                        min_balance: min_balance,
+                        min_balance,
                     })
                 }
             },
@@ -207,7 +213,7 @@ impl Bundler {
 
         match self.chain.id() {
             // Mumbai
-            80001u64 => {
+            supported_networks::MUMBAI => {
                 tx.set_nonce(nonce).set_chain_id(self.chain.id());
             }
             // All other surpported networks, including Mainnet, Goerli
@@ -537,6 +543,7 @@ mod test {
             Chain::from(1),
             SendBundleMode::Flashbots,
             Some(vec![flashbots_relay_endpoints::FLASHBOTS.to_string()]),
+            U256::from(100000000000000000),
         )
         .expect("Failed to create bundler");
 
@@ -555,7 +562,10 @@ mod test {
         dotenv::dotenv().ok();
         let eth_client_address = env::var("HTTP_RPC").expect("HTTP_RPC env var not set");
         let ep_address = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789".parse::<Address>()?;
-        let dir = format!("{}/.silius/0x03b758624016FE79Aa871e172aF027f46d1Ec1D3", env::var("HOME").unwrap());
+        let dir = format!(
+            "{}/.silius/0x03b758624016FE79Aa871e172aF027f46d1Ec1D3",
+            env::var("HOME").unwrap()
+        );
         let wallet = Wallet::from_file(dir.into(), &U256::from(5), true)?;
 
         let bundler = Bundler::new(
@@ -566,6 +576,7 @@ mod test {
             Chain::from(5),
             SendBundleMode::Flashbots,
             Some(vec![flashbots_relay_endpoints::FLASHBOTS_GOERLI.to_string()]),
+            U256::from(100000000000000000),
         )
         .expect("Failed to create bundler");
 
@@ -587,7 +598,9 @@ mod test {
         let approve_call_data = approve.encode();
 
         let address = bundler.wallet.signer.address();
-        let nonce = fb_client.get_transaction_count(address.clone(), None).await?;
+        let nonce = fb_client
+            .get_transaction_count(address.clone(), None)
+            .await?;
 
         let approve_tx_req = TypedTransaction::Eip1559(Eip1559TransactionRequest {
             to: Some(NameOrAddress::Address(
@@ -604,12 +617,8 @@ mod test {
             access_list: Default::default(),
         });
 
-        let sim_bundle_req = generate_bundle_req(
-            fb_client.clone(),
-            vec![approve_tx_req.clone()],
-            true,
-        )
-        .await?;
+        let sim_bundle_req =
+            generate_bundle_req(fb_client.clone(), vec![approve_tx_req.clone()], true).await?;
         let pre_simultation_block = sim_bundle_req.block().unwrap();
 
         let simultation_res = simulate_fb_bundle(fb_client.clone(), &sim_bundle_req).await?;
@@ -619,7 +628,6 @@ mod test {
         assert_ne!(coinbase_diff, U256::zero());
 
         Ok(())
-
     }
 
     async fn start_mock_server() -> anyhow::Result<(ServerHandle, MockFlashbotsBlockBuilderRelay)> {

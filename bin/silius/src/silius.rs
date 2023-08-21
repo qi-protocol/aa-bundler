@@ -56,7 +56,6 @@ pub struct Opt {
 
     #[clap(flatten)]
     pub bundler_opts: BundlerServiceOpts,
-
 }
 
 fn main() -> Result<()> {
