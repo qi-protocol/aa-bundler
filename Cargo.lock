@@ -1592,30 +1592,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "syn 2.0.29",
- "toml",
- "walkdir",
-]
-
-[[package]]
-name = "ethers-contract-abigen"
-version = "2.0.8"
-source = "git+https://github.com/gakonst/ethers-rs?rev=fa3017715a298728d9fb341933818a5d0d84c2dc#fa3017715a298728d9fb341933818a5d0d84c2dc"
-dependencies = [
- "Inflector",
- "const-hex",
- "dunce",
- "ethers-core 2.0.8 (git+https://github.com/gakonst/ethers-rs?rev=fa3017715a298728d9fb341933818a5d0d84c2dc)",
- "ethers-etherscan 2.0.8 (git+https://github.com/gakonst/ethers-rs?rev=fa3017715a298728d9fb341933818a5d0d84c2dc)",
- "eyre",
- "prettyplease 0.2.12",
- "proc-macro2",
- "quote",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "syn 2.0.29",
+ "syn 2.0.28",
  "toml",
  "walkdir",
 ]
@@ -2996,20 +2973,6 @@ dependencies = [
  "jsonrpsee-core 0.20.0",
  "jsonrpsee-types 0.20.0",
  "url",
-]
-
-[[package]]
-name = "jsonwebtoken"
-version = "8.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6971da4d9c3aa03c3d8f3ff0f4155b534aad021292003895a469716b2a230378"
-dependencies = [
- "base64 0.21.2",
- "pem",
- "ring",
- "serde",
- "serde_json",
- "simple_asn1",
 ]
 
 [[package]]
@@ -5030,7 +4993,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "dotenv",
- "ethers 2.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethers",
  "ethers-flashbots",
  "ethers-flashbots-test",
  "jsonrpsee 0.20.0",
