@@ -29,11 +29,9 @@ parking_lot = "0.12"
 serde_json = "1"
 tokio = { version = "1.18", features = ["full"] }
 tracing = "0.1"
+revm = "3.3.0"
 
 [profile.debug-fast]
 inherits = "release"
 debug = true
 
-[patch]
-[patch.crates-io]
-revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "3d8ca6641d2e72448c23f4596f769c8fd1c784d1" }

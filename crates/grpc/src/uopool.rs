@@ -8,24 +8,22 @@ use anyhow::Result;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use ethers::{
-    providers::{Http, Middleware, Provider},
+    providers::Middleware,
     types::{Address, U256},
 };
-use expanded_pathbuf::ExpandedPathBuf;
 use silius_contracts::entry_point::EntryPointErr;
 use silius_primitives::reputation::ReputationEntry;
-use silius_primitives::{uopool::AddError, Chain, UoPoolMode};
+use silius_primitives::{uopool::AddError, Chain};
 use silius_uopool::{
-    init_env, DBError, DatabaseMempool, DatabaseReputation, Mempool, VecCh, VecUo, WriteMap,
+     Mempool, VecCh, VecUo, 
 };
 use silius_uopool::{
     mempool_id, validate::validator::StandardUserOperationValidator, MempoolId, Reputation,
     UoPool as UserOperationPool,
 };
 use std::fmt::{Debug, Display};
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::sync::Arc;
 use tonic::{Code, Request, Response, Status};
-use tracing::warn;
 
 pub const MAX_UOS_PER_UNSTAKED_SENDER: usize = 4;
 pub const GAS_INCREASE_PERC: u64 = 10;
@@ -342,80 +340,80 @@ where
         Ok(res)
     }
 }
-
-#[allow(clippy::too_many_arguments)]
-pub async fn uopool_service_run(
-    addr: SocketAddr,
-    datadir: ExpandedPathBuf,
-    eps: Vec<Address>,
-    eth_client: Arc<Provider<Http>>,
-    chain: Chain,
-    max_verification_gas: U256,
-    min_stake: U256,
-    min_unstake_delay: U256,
-    min_priority_fee_per_gas: U256,
-    whitelist: Vec<Address>,
-    upool_mode: UoPoolMode,
-) -> Result<()> {
-    tokio::spawn(async move {
-        let mut builder = tonic::transport::Server::builder();
-
-        let m_map = Arc::new(DashMap::<
-            MempoolId,
-            UoPoolBuilder<
-                Provider<Http>,
-                DatabaseMempool<WriteMap>,
-                DatabaseReputation<WriteMap>,
-                DBError,
-            >,
-        >::new());
-
-        let env = Arc::new(init_env::<WriteMap>(datadir.join("db")).expect("Init mdbx failed"));
-        env.create_tables()
-            .expect("Create mdbx database tables failed");
-
-        for ep in eps {
-            let id = mempool_id(&ep, &U256::from(chain.id()));
-            let builder = UoPoolBuilder::new(
-                upool_mode == UoPoolMode::Unsafe,
-                eth_client.clone(),
-                ep,
-                chain,
-                max_verification_gas,
-                min_stake,
-                min_unstake_delay,
-                min_priority_fee_per_gas,
-                whitelist.clone(),
-                DatabaseMempool::new(env.clone()),
-                DatabaseReputation::new(env.clone()),
-            );
-            m_map.insert(id, builder);
-        }
-
-        let svc = uo_pool_server::UoPoolServer::new(UoPoolService::<
-            Provider<Http>,
-            DatabaseMempool<WriteMap>,
-            DatabaseReputation<WriteMap>,
-            DBError,
-        >::new(m_map.clone(), chain));
-
-        tokio::spawn(async move {
-            loop {
-                m_map.iter_mut().for_each(|m| {
-                    let _ = m
-                        .uopool()
-                        .reputation
-                        .update_hourly()
-                        .map_err(|e| warn!("Failed to update hourly reputation: {:?}", e));
-                });
-                tokio::time::sleep(Duration::from_secs(60 * 60)).await;
-            }
-        });
-
-        builder.add_service(svc).serve(addr).await
-    });
-
-    tokio::time::sleep(Duration::from_secs(1)).await;
-
-    Ok(())
-}
+//
+//#[allow(clippy::too_many_arguments)]
+//pub async fn uopool_service_run(
+//    addr: SocketAddr,
+//    datadir: ExpandedPathBuf,
+//    eps: Vec<Address>,
+//    eth_client: Arc<Provider<Http>>,
+//    chain: Chain,
+//    max_verification_gas: U256,
+//    min_stake: U256,
+//    min_unstake_delay: U256,
+//    min_priority_fee_per_gas: U256,
+//    whitelist: Vec<Address>,
+//    upool_mode: UoPoolMode,
+//) -> Result<()> {
+//    tokio::spawn(async move {
+//        let mut builder = tonic::transport::Server::builder();
+//
+//        let m_map = Arc::new(DashMap::<
+//            MempoolId,
+//            UoPoolBuilder<
+//                Provider<Http>,
+//                DatabaseMempool<WriteMap>,
+//                DatabaseReputation<WriteMap>,
+//                DBError,
+//            >,
+//        >::new());
+//
+//        let env = Arc::new(init_env::<WriteMap>(datadir.join("db")).expect("Init mdbx failed"));
+//        env.create_tables()
+//            .expect("Create mdbx database tables failed");
+//
+//        for ep in eps {
+//            let id = mempool_id(&ep, &U256::from(chain.id()));
+//            let builder = UoPoolBuilder::new(
+//                upool_mode == UoPoolMode::Unsafe,
+//                eth_client.clone(),
+//                ep,
+//                chain,
+//                max_verification_gas,
+//                min_stake,
+//                min_unstake_delay,
+//                min_priority_fee_per_gas,
+//                whitelist.clone(),
+//                DatabaseMempool::new(env.clone()),
+//                DatabaseReputation::new(env.clone()),
+//            );
+//            m_map.insert(id, builder);
+//        }
+//
+//        let svc = uo_pool_server::UoPoolServer::new(UoPoolService::<
+//            Provider<Http>,
+//            DatabaseMempool<WriteMap>,
+//            DatabaseReputation<WriteMap>,
+//            DBError,
+//        >::new(m_map.clone(), chain));
+//
+//        tokio::spawn(async move {
+//            loop {
+//                m_map.iter_mut().for_each(|m| {
+//                    let _ = m
+//                        .uopool()
+//                        .reputation
+//                        .update_hourly()
+//                        .map_err(|e| warn!("Failed to update hourly reputation: {:?}", e));
+//                });
+//                tokio::time::sleep(Duration::from_secs(60 * 60)).await;
+//            }
+//        });
+//
+//        builder.add_service(svc).serve(addr).await
+//    });
+//
+//    tokio::time::sleep(Duration::from_secs(1)).await;
+//
+//    Ok(())
+//}

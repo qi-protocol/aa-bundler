@@ -19,15 +19,17 @@ ethers = { workspace = true }
 page_size = "0.5.0"
 parking_lot = { workspace = true }
 prost = "0.11"
-reth-db = { git = "https://github.com/paradigmxyz/reth.git", rev = "aa6f2cb0610fb4fa0926b42cfed7f8ff51e0db8a" }
-reth-libmdbx = { git = "https://github.com/paradigmxyz/reth.git", rev = "aa6f2cb0610fb4fa0926b42cfed7f8ff51e0db8a" }
 serde = "1"
 serde_json = { workspace = true }
 silius-contracts = { path = "../contracts" }
 silius-primitives = { path = "../primitives" }
 tokio = { workspace = true }
 tracing = { workspace = true }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev="1ed5ae14bfadeee3dd542dda1bd2dfd65e6ed5ee"}
+reth-libmdbx = { git = "https://github.com/paradigmxyz/reth", rev="97913049df99ae71817f8b09c37feee98482a770"}
 
+subtle = "2.4.0"
+aes-gcm = "0.9.4"
 [dev-dependencies]
 silius-primitives = { path = "../primitives", features = ["test-utils"] }
 tempdir = "0.3.7"
