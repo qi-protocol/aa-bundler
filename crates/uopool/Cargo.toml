@@ -28,7 +28,6 @@ tracing = { workspace = true }
 reth-db = { git = "https://github.com/paradigmxyz/reth", rev="1ed5ae14bfadeee3dd542dda1bd2dfd65e6ed5ee"}
 reth-libmdbx = { git = "https://github.com/paradigmxyz/reth", rev="97913049df99ae71817f8b09c37feee98482a770"}
 
-aes-gcm = "0.10"
 [dev-dependencies]
 silius-primitives = { path = "../primitives", features = ["test-utils"] }
 tempdir = "0.3.7"
