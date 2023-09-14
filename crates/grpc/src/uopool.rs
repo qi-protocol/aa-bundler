@@ -4,25 +4,31 @@ use crate::{
     proto::types::{GetChainIdResponse, GetSupportedEntryPointsResponse},
     utils::{parse_addr, parse_hash, parse_uo},
 };
+use tracing::warn;
+use silius_primitives::UoPoolMode;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use ethers::{
-    providers::Middleware,
+    providers::{Middleware, Http, Provider},
     types::{Address, U256},
 };
 use silius_contracts::entry_point::EntryPointErr;
 use silius_primitives::reputation::ReputationEntry;
 use silius_primitives::{uopool::AddError, Chain};
 use silius_uopool::{
-     Mempool, VecCh, VecUo, 
+     Mempool, VecCh, VecUo, MemoryMempool, MemoryReputation
 };
 use silius_uopool::{
     mempool_id, validate::validator::StandardUserOperationValidator, MempoolId, Reputation,
     UoPool as UserOperationPool,
 };
+use expanded_pathbuf::ExpandedPathBuf;
+use std::net::SocketAddr;
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
+use std::time::Duration;
 use tonic::{Code, Request, Response, Status};
 
 pub const MAX_UOS_PER_UNSTAKED_SENDER: usize = 4;
@@ -340,80 +346,77 @@ where
         Ok(res)
     }
 }
-//
-//#[allow(clippy::too_many_arguments)]
-//pub async fn uopool_service_run(
-//    addr: SocketAddr,
-//    datadir: ExpandedPathBuf,
-//    eps: Vec<Address>,
-//    eth_client: Arc<Provider<Http>>,
-//    chain: Chain,
-//    max_verification_gas: U256,
-//    min_stake: U256,
-//    min_unstake_delay: U256,
-//    min_priority_fee_per_gas: U256,
-//    whitelist: Vec<Address>,
-//    upool_mode: UoPoolMode,
-//) -> Result<()> {
-//    tokio::spawn(async move {
-//        let mut builder = tonic::transport::Server::builder();
-//
-//        let m_map = Arc::new(DashMap::<
-//            MempoolId,
-//            UoPoolBuilder<
-//                Provider<Http>,
-//                DatabaseMempool<WriteMap>,
-//                DatabaseReputation<WriteMap>,
-//                DBError,
-//            >,
-//        >::new());
-//
-//        let env = Arc::new(init_env::<WriteMap>(datadir.join("db")).expect("Init mdbx failed"));
-//        env.create_tables()
-//            .expect("Create mdbx database tables failed");
-//
-//        for ep in eps {
-//            let id = mempool_id(&ep, &U256::from(chain.id()));
-//            let builder = UoPoolBuilder::new(
-//                upool_mode == UoPoolMode::Unsafe,
-//                eth_client.clone(),
-//                ep,
-//                chain,
-//                max_verification_gas,
-//                min_stake,
-//                min_unstake_delay,
-//                min_priority_fee_per_gas,
-//                whitelist.clone(),
-//                DatabaseMempool::new(env.clone()),
-//                DatabaseReputation::new(env.clone()),
-//            );
-//            m_map.insert(id, builder);
-//        }
-//
-//        let svc = uo_pool_server::UoPoolServer::new(UoPoolService::<
-//            Provider<Http>,
-//            DatabaseMempool<WriteMap>,
-//            DatabaseReputation<WriteMap>,
-//            DBError,
-//        >::new(m_map.clone(), chain));
-//
-//        tokio::spawn(async move {
-//            loop {
-//                m_map.iter_mut().for_each(|m| {
-//                    let _ = m
-//                        .uopool()
-//                        .reputation
-//                        .update_hourly()
-//                        .map_err(|e| warn!("Failed to update hourly reputation: {:?}", e));
-//                });
-//                tokio::time::sleep(Duration::from_secs(60 * 60)).await;
-//            }
-//        });
-//
-//        builder.add_service(svc).serve(addr).await
-//    });
-//
-//    tokio::time::sleep(Duration::from_secs(1)).await;
-//
-//    Ok(())
-//}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn uopool_service_run(
+    addr: SocketAddr,
+    _datadir: ExpandedPathBuf,
+    eps: Vec<Address>,
+    eth_client: Arc<Provider<Http>>,
+    chain: Chain,
+    max_verification_gas: U256,
+    min_stake: U256,
+    min_unstake_delay: U256,
+    min_priority_fee_per_gas: U256,
+    whitelist: Vec<Address>,
+    upool_mode: UoPoolMode,
+) -> Result<()> {
+    tokio::spawn(async move {
+        let mut builder = tonic::transport::Server::builder();
+
+        let m_map = Arc::new(DashMap::<
+            MempoolId,
+            UoPoolBuilder<
+                Provider<Http>,
+                MemoryMempool,
+                MemoryReputation,
+                anyhow::Error,
+            >,
+        >::new());
+
+
+        for ep in eps {
+            let id = mempool_id(&ep, &U256::from(chain.id()));
+            let builder = UoPoolBuilder::new(
+                upool_mode == UoPoolMode::Unsafe,
+                eth_client.clone(),
+                ep,
+                chain,
+                max_verification_gas,
+                min_stake,
+                min_unstake_delay,
+                min_priority_fee_per_gas,
+                whitelist.clone(),
+                MemoryMempool::default(),
+                MemoryReputation::default(),
+            );
+            m_map.insert(id, builder);
+        }
+
+        let svc = uo_pool_server::UoPoolServer::new(UoPoolService::<
+            Provider<Http>,
+            MemoryMempool,
+            MemoryReputation,
+            anyhow::Error,
+        >::new(m_map.clone(), chain));
+
+        tokio::spawn(async move {
+            loop {
+                m_map.iter_mut().for_each(|m| {
+                    let _ = m
+                        .uopool()
+                        .reputation
+                        .update_hourly()
+                        .map_err(|e| warn!("Failed to update hourly reputation: {:?}", e));
+                });
+                tokio::time::sleep(Duration::from_secs(60 * 60)).await;
+            }
+        });
+
+        builder.add_service(svc).serve(addr).await
+    });
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    Ok(())
+}
