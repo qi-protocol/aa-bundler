@@ -16,7 +16,7 @@ anyhow = { workspace = true }
 async-trait = "0.1"
 bytes = "1.4.0"
 ethers = { workspace = true }
-ethers-flashbots = { git = "https://github.com/qi-protocol/ethers-flashbots.git", branch = "master" }
+ethers-flashbots = { git = "https://github.com/qi-protocol/ethers-flashbots.git", branch = "ethuo" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
 silius-contracts = { path = "../contracts" }
