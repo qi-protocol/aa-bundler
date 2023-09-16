@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use strum_macros::{EnumString, EnumVariantNames};
 
 /// Default time interval for auto bundling mode (in seconds)
@@ -14,7 +14,9 @@ pub enum Mode {
 }
 
 /// The `SendBundleMode` determines whether to send the bundle to a Ethereum execution client or to Flashbots relay
-#[derive(Clone, Copy, Debug, EnumString, EnumVariantNames, PartialEq, Eq)]
+#[derive(
+    Clone, Copy, Serialize, Deserialize, Debug, EnumString, EnumVariantNames, PartialEq, Eq,
+)]
 #[strum(serialize_all = "kebab_case")]
 pub enum SendBundleMode {
     /// Send the bundle to a Ethereum execution client
